@@ -498,6 +498,8 @@ s.write("/reverse_park/run -13 5 4\n".encode()) # send RPC to remote
 time.sleep(1)
 s.close()
 ```
+In this part, I put BB Car at on the floor with random position and direction, then use ruler to estimate the distance between car and parking space.  
+Run XBee_host to send RPC command through XBee, the car will steer into the parking lot.  
 **Part2**  
 main.cpp  
 ```c  
@@ -577,6 +579,8 @@ while(True):
         print(l.rho())
         time.sleep(1)
  ```
+ In this part, I draw a blue line on the white paper and put in on the floor.  
+ Then use open MV to scan the line at any angle, the car will judge itself to follow the straight line.  
  **Part 3**  
  main.cpp  
  ```c
@@ -661,3 +665,5 @@ while(True):
       print("%d" % detection)
       time.sleep(0.8)
 ```
+In this part, I use iPad to show AirTags on the screen, when the oopen MV on BB Car see the tags, its will judge the direction to be perpendicular to the iPad surface and steer itself getting close to the AirTags.  
+When the distance between Tags and the car is about 10 cm, the car will stop. 
