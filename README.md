@@ -485,6 +485,19 @@ void reverse_park (Arguments *in, Reply *out) {             // RPC function for 
     return;
 }
 ```  
+XBee_host.py
+```python
+import serial
+import time
+
+# XBee setting
+serdev = '/dev/ttyUSB0'
+s = serial.Serial(serdev, 9600)                 # buad rate for serial communication
+    
+s.write("/reverse_park/run -13 5 4\n".encode()) # send RPC to remote
+time.sleep(1)
+s.close()
+```
 **Part2**  
 main.cpp  
 ```c  
@@ -548,7 +561,7 @@ while(True):
     if (l):
         img.draw_line(l.line(), color = 127)        
         #print("%f,%f,%f,%f" % print_args)
-        if (l.theta() < 165 and l.theta() > 90): 
+        if (l.theta() < 165 and l.theta() > 90):           # theta is angle (slope) of the line
            detection = 2                                   # if theta excceed some range, car needs to turn left
            s = 0.7
         elif (l.theta() > 15 and l.theta() < 90): 
@@ -564,4 +577,87 @@ while(True):
         print(l.rho())
         time.sleep(1)
  ```
- **Part 3**
+ **Part 3**  
+ main.cpp  
+ ```c
+#include"mbed.h"
+#include "bbcar.h"
+#include "mbed_rpc.h"
+#include "bbcar_rpc.h"
+BufferedSerial pc(USBTX,USBRX); //tx,rx
+BufferedSerial uart(D1,D0); //tx,rx
+Ticker servo_ticker;
+PwmOut pin5(D5), pin6(D6);
+BBCar car(pin5, pin6, servo_ticker);
+
+int main(){
+   uart.set_baud(9600);                             // buad rate for uart comunication
+   while(1){
+      if(uart.readable()){
+            char recv[1];                           // reaad one char from open MV
+            uart.read(recv, sizeof(recv));
+            if (recv[0] == '1') {                   // command from open MV for turn right
+                car.turn(50,0);
+                ThisThread::sleep_for(200ms);
+                car.stop();
+                ThisThread::sleep_for(500ms);
+            } else if (recv[0] == '2') {            // command from open MV for turn left
+                car.turn(-50,0);
+                ThisThread::sleep_for(200ms);
+                car.stop();
+                ThisThread::sleep_for(500ms);
+            } else if (recv[0] == '0') {            // command from open MV for go straight
+                car.goStraight(50);
+                ThisThread::sleep_for(500ms);
+                car.stop();
+            } else {                                // if detect no lines, car stop
+                car.stop();
+            } 
+        pc.write(recv, sizeof(recv));               // print out received command
+      }
+   }
+}
+```
+Position_Calibration.py  
+```python
+import pyb, sensor, image, time, math
+
+sensor.reset()
+sensor.set_pixformat(sensor.RGB565)
+sensor.set_framesize(sensor.QQVGA) # we run out of memory if the resolution is much bigger...
+sensor.skip_frames(time = 2000)
+sensor.set_auto_gain(False)  # must turn this off to prevent image washout...
+sensor.set_auto_whitebal(False)  # must turn this off to prevent image washout...
+clock = time.clock()
+
+f_x = (2.8 / 3.984) * 160 # find_apriltags defaults to this if not set
+f_y = (2.8 / 2.952) * 120 # find_apriltags defaults to this if not set
+c_x = 160 * 0.5 # find_apriltags defaults to this if not set (the image.w * 0.5)
+c_y = 120 * 0.5 # find_apriltags defaults to this if not set (the image.h * 0.5)
+
+def degrees(radians):
+   return (180 * radians) / math.pi
+
+uart = pyb.UART(3,9600,timeout_char=1000)
+uart.init(9600,bits=8,parity = None, stop=1, timeout_char=1000)
+
+while(True):
+   clock.tick()
+   img = sensor.snapshot()
+   for tag in img.find_apriltags(fx=f_x, fy=f_y, cx=c_x, cy=c_y): # defaults to TAG36H11
+      img.draw_rectangle(tag.rect(), color = (255, 0, 0))
+      img.draw_cross(tag.cx(), tag.cy(), color = (0, 255, 0))
+      # The conversion is nearly 6.2cm to 1 -> translation
+      print_args = (degrees(tag.y_rotation()))
+          # Translation units are unknown. Rotation units are in degrees.
+      if degrees(tag.y_rotation()) > 3 and  degrees(tag.y_rotation()) < 30:         # if angle in y derection exceeds some range, car needs to turn right
+         detection = 1
+      elif degrees(tag.y_rotation()) < 357 and  degrees(tag.y_rotation()) > 320:    # if angle in y derection exceeds some range, car needs to turn left
+         detection = 2
+      else:                                                                         # if angle in y derection is within the range, car goes straight
+         detection = 0
+      uart.write(("%d\r\n" % detection).encode())                                   # send data throughout uart
+      print("%f" % print_args)
+      print("%d" % detection)
+      time.sleep(0.8)
+```
