@@ -665,5 +665,5 @@ while(True):
       print("%d" % detection)
       time.sleep(0.8)
 ```
-In this part, I use iPad to show AirTags on the screen, when the oopen MV on BB Car see the tags, its will judge the direction to be perpendicular to the iPad surface and steer itself getting close to the AirTags.  
+In this part, I use iPad to show AprilTags on the screen, when the oopen MV on BB Car see the tags, its will judge the direction to be perpendicular to the iPad surface and steer itself getting close to the AprilTags.  
 When the distance between Tags and the car is about 10 cm, the car will stop. 
